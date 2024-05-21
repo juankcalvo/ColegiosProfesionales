@@ -1,9 +1,16 @@
 ﻿using Newtonsoft.Json.Linq;
 using RestSharp;
 using HtmlAgilityPack;
-using Microsoft.EntityFrameworkCore;
 using ScrapperData.Database.Contexto;
 using ScrapperData.Database.Models;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net;
+using System.Text.RegularExpressions;  // Incluir para WebUtility
 
 public class ScrapHuli
 {
@@ -29,10 +36,23 @@ public class ScrapHuli
 
             Console.WriteLine($"Total pages calculated: {totalPages}");
 
+            int colegioId = 0;
+            using (var context = new ColegiosProfesionalesContext())
+            {
+                colegioId = await context.Colegios
+                                         .Where(c => c.Profesion == "medicos y cirujanos")
+                                         .Select(c => c.Id)
+                                         .FirstOrDefaultAsync();
+            }
+
+            if (colegioId == 0)
+            {
+                Console.WriteLine("No se encontró el colegio especificado. Verifique la profesión.");
+                return;
+            }
+
             await Parallel.ForEachAsync(pagesList, new ParallelOptions() { MaxDegreeOfParallelism = 10 }, async (page, ct) =>
             {
-                using ColegiosProfesionalesContext _context = new ColegiosProfesionalesContext();
-
                 var request = new RestRequest($"?page={page}&l_id=1-13707&kl=1&sort=name_asc&ro=9619", Method.Get);
                 var response = await client.ExecuteAsync(request);
 
@@ -47,46 +67,54 @@ public class ScrapHuli
                     {
                         HtmlDocument doc = new HtmlDocument();
                         doc.LoadHtml(htmlContent);
-                        var articles = doc.DocumentNode.SelectNodes("//article[contains(@class, 'Colegiado')]");
+                        var articles = doc.DocumentNode.SelectNodes("//article[contains(@class, 'doctor')]");
 
-                        if (articles != null)
+                        if (articles != null && articles.Count > 0)
                         {
+                            using var _context = new ColegiosProfesionalesContext();
+
                             foreach (var article in articles)
                             {
-                                var Colegiado = new Colegiado
+                                var nombreHtml = article.SelectSingleNode(".//div[contains(@class, 'name')]")?.InnerText.Trim();
+                                var nombre = WebUtility.HtmlDecode(nombreHtml);  
+
+                                var EspecialidadHtml = article.SelectSingleNode(".//div[contains(@class, 'specialty')]")?.InnerText.Trim();
+                                var Especialidad = WebUtility.HtmlDecode(EspecialidadHtml);
+
+                                //var rawNumeroCarne = article.SelectSingleNode(".//span[contains(@class, 'license-number')]")?.InnerText.Trim();
+                                //var match = Regex.Match(rawNumeroCarne, @"\d+");
+                                //var numeroCarne = match.Success ? match.Value : "";
+
+                                var colegiado = new Colegiado
                                 {
-                                    Nombre = article.SelectSingleNode(".//div[contains(@class, 'name')]")?.InnerText.Trim(),
-                                    Especialidad = article.SelectSingleNode(".//div[contains(@class, 'specialty')]")?.InnerText.Trim(),
-                                    //LicenseType = article.SelectSingleNode(".//span[contains(@class, 'professional-license-type')]")?.InnerText.Trim(),
-                                    NumeroCarne = article.SelectSingleNode(".//span[contains(@class, 'license-number')]")?.InnerText.Trim()
+                                    Nombre = nombre,
+                                    Especialidad = Especialidad,
+                                    NumeroCarne = article.SelectSingleNode(".//span[contains(@class, 'license-number')]")?.InnerText.Trim(),
+                                    CondicionColegiadoId = 1,
+                                    ColegioId = colegioId
                                 };
 
-                                var existingColegiado = await _context.Colegiados
-                                    .FirstOrDefaultAsync(d => d.NumeroCarne == Colegiado.NumeroCarne);
-
+                                var existingColegiado = await _context.Colegiados.FirstOrDefaultAsync(c => c.NumeroCarne == colegiado.NumeroCarne);
                                 if (existingColegiado == null)
                                 {
                                     var photoUrl = article.SelectSingleNode(".//img[@itemprop='image']")?.GetAttributeValue("src", string.Empty).Trim();
                                     if (!string.IsNullOrEmpty(photoUrl) && !photoUrl.Contains("gray-120x150.png"))
                                     {
-                                        Colegiado.FotoColegiado = new FotoColegiado { FotoColegiado1 = await DownloadImageAsByteArray(photoUrl) };
+                                        colegiado.FotoColegiado = new FotoColegiado
+                                        {
+                                            FotoColegiado1 = await DownloadImageAsByteArray(photoUrl)
+                                        };
                                     }
 
-                                    _context.Colegiados.Add(Colegiado);
-                                    Console.WriteLine($"Added: {Colegiado.Nombre}");
-                                    Console.WriteLine($"Specialty: {Colegiado.Especialidad}");
-                                    Console.WriteLine($"License Number: {Colegiado.NumeroCarne}");
-                                    Console.WriteLine($"Photo URL: {photoUrl}");
-                                    Console.WriteLine($"Photo varbinary: {(Colegiado.FotoColegiado?.FotoColegiado1 == null || Colegiado.FotoColegiado.FotoColegiado1.Length == 0 ? "no tiene foto de perfil" : Colegiado.FotoColegiado.FotoColegiado1.Length.ToString())}");
-                                    Console.WriteLine("-_-_-_-_-_-_-_-_-_-_s-_-_-_-_-_-_-_-_-_-_-_-");
+                                    _context.Colegiados.Add(colegiado);
+                                    await _context.SaveChangesAsync();
+                                    Console.WriteLine($"Added: {colegiado.Nombre}");
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"Duplicate found, skipping: {Colegiado.Nombre} with License Number: {Colegiado.NumeroCarne}");
+                                    Console.WriteLine($"Duplicate found, skipping: {colegiado.Nombre}");
                                 }
                             }
-                            await _context.SaveChangesAsync();
-                            Console.WriteLine("Data saved to database.");
                         }
                         else
                         {
@@ -102,7 +130,6 @@ public class ScrapHuli
                 {
                     Console.WriteLine($"Error in request: {response.ErrorMessage}");
                 }
-
             });
         }
         else
@@ -121,6 +148,10 @@ public class ScrapHuli
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadAsByteArrayAsync();
+                }
+                else
+                {
+                    Console.WriteLine("Failed to download image.");
                 }
             }
             catch (Exception ex)
