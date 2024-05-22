@@ -3,9 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using RestSharp;
 using ScrapperData.Database.Contexto;
 using ScrapperData.Database.Models;
-using System;
-using System.Linq;
-
 public class ScrapOptometristas
 {
     private const string BaseUrl = "https://www.colegiodeoptometristas.com/lista-de-colegiados-2/";

@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using RestSharp;
 using ScrapperData.Database.Contexto;
 using ScrapperData.Database.Models;
-using System;
-using System.Linq;
 
 public class ScrapGeologos
 {

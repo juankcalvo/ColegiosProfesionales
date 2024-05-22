@@ -4,8 +4,10 @@ using iTextSharp.text.pdf.parser;
 using RestSharp;
 using ScrapperData.Database.Contexto;
 using ScrapperData.Database.Models;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
+using EFCore.BulkExtensions;
 
 public class ScrapColyPro
 {
@@ -46,7 +48,6 @@ public class ScrapColyPro
         {
             var client = new RestClient(BaseUrl);
             var request = new RestRequest();
-            request.Method = Method.Get;
             var response = await client.ExecuteAsync(request);
 
             if (response.IsSuccessful)
@@ -81,7 +82,6 @@ public class ScrapColyPro
         {
             var client = new RestClient(pdfUrl);
             var request = new RestRequest();
-            request.Method = Method.Get;
             var response = await client.ExecuteAsync(request);
 
             if (response.IsSuccessful)
@@ -127,62 +127,47 @@ public class ScrapColyPro
 
     private async Task ExtractDataFromText(string text)
     {
-        try
+        var lines = text.Split('\n');
+        bool isTableStarted = false;
+        ConcurrentBag<Colegiado> colegiados = new ConcurrentBag<Colegiado>();
+
+        foreach (var line in lines)
         {
-            var lines = text.Split('\n');
-            bool isTableStarted = false;
-            using (var context = new ColegiosProfesionalesContext())
+            if (line.Contains("Cédula"))
             {
-                foreach (var line in lines)
+                isTableStarted = true;
+                continue;
+            }
+
+            if (isTableStarted && !string.IsNullOrWhiteSpace(line))
+            {
+                var matches = Regex.Matches(line, @"(\d+)\s+(.*?)(Retiro Indefinido|Suspendido|Activo|Retiro Temporal)(?=\d|$)");
+                foreach (Match match in matches)
                 {
-                    if (line.Contains("Cédula")) 
+                    if (match.Success)
                     {
-                        isTableStarted = true;
-                        continue;
-                    }
+                        string Identificacion = match.Groups[1].Value.Trim();
+                        string Nombre = match.Groups[2].Value.Trim();
+                        string Estado = match.Groups[3].Value.Trim();  
 
-                    if (isTableStarted && !string.IsNullOrWhiteSpace(line))
-                    {
-                        var matches = Regex.Matches(line, @"(\d+)\s+(.*?)(Retiro Indefinido|Suspendido|Activo|Retiro Temporal)(?=\d|$)");
-                        foreach (Match match in matches)
+                        colegiados.Add(new Colegiado
                         {
-                            if (match.Success)
-                            {
-                                string Identificacion = match.Groups[1].Value.Trim();
-                                string Nombre = match.Groups[2].Value.Trim();
-                                string CondicionColegiadoId = match.Groups[3].Value.Trim();
-
-                                // Verificar si el colegiado ya existe en la base de datos por cédula
-                                var existing = context.Colegiados.FirstOrDefault(c => c.Identificacion == Identificacion);
-                                if (existing == null)
-                                {
-                                    // Si no existe, agregar nuevo colegiado
-                                    context.Colegiados.Add(new Colegiado
-                                    {
-                                        Identificacion = Identificacion,
-                                        Nombre = Nombre,
-                                        CondicionColegiadoId = 1
-                                    });
-                                    Console.WriteLine($"Adding to database: {Identificacion}, {Nombre}, {CondicionColegiadoId}");
-                                }
-                                else
-                                {
-                                    
-                                    Console.WriteLine($"Duplicate entry skipped: {Identificacion}");
-                                }
-                            }
-                        }
+                            Identificacion = Identificacion,
+                            Nombre = Nombre,
+                            CondicionColegiadoId = 1 
+                        });
                     }
                 }
-
-                await context.SaveChangesAsync();
-                Console.WriteLine("All data has been saved to the database.");
             }
         }
-        catch (Exception ex)
+
+        using (var context = new ColegiosProfesionalesContext())
         {
-            Console.WriteLine($"An error occurred while extracting data from text: {ex.Message}");
+            if (colegiados.Any())
+            {
+                await context.BulkInsertAsync(colegiados.ToList());
+                Console.WriteLine("se inserto todo!!!");
+            }
         }
     }
-
 }
