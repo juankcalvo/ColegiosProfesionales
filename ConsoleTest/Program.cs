@@ -2,8 +2,9 @@
 {
     static async Task Main(string[] args)
     {
-        ScrapHuli scrapHuli = new ScrapHuli();
-        await scrapHuli.ProcessColegiadoData();
+
+        //ScrapHuli scrapHuli = new ScrapHuli();
+        //await scrapHuli.ProcessColegiadoData();
 
 
         //ScrapTrabajoSocial scrapTS = new ScrapTrabajoSocial();
@@ -18,10 +19,13 @@
         //await scrapGeologos.ProcessAgremiadosData();
 
 
-        ScrapOptometristas scrapOptometristas = new ScrapOptometristas();
-        await scrapOptometristas.ProcessColegiadosData();
+        //ScrapOptometristas scrapOptometristas = new ScrapOptometristas();
+        //await scrapOptometristas.ProcessColegiadosData();
 
 
+        ScrapColyPro scrapColyPro = new ScrapColyPro();
+        await scrapColyPro.DownloadAndProcessPdfAsync();
+         
 
         Console.ReadKey();
     }

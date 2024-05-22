@@ -24,16 +24,16 @@ public class ScrapColyPro
                 if (!string.IsNullOrEmpty(filePath))
                 {
                     await ProcessPdf(filePath);
-                    Console.WriteLine("PDF has been processed successfully.");
+                    Console.WriteLine("Se proceso completamente el PDF.");
                 }
                 else
                 {
-                    Console.WriteLine("Failed to download PDF.");
+                    Console.WriteLine("Fallo la descarga del PDF");
                 }
             }
             else
             {
-                Console.WriteLine("PDF URL could not be found.");
+                Console.WriteLine("No se puede encontrar el PDF");
             }
         }
         catch (Exception ex)
@@ -44,84 +44,61 @@ public class ScrapColyPro
 
     private async Task<string> GetPdfUrlAsync()
     {
-        try
-        {
-            var client = new RestClient(BaseUrl);
-            var request = new RestRequest();
-            var response = await client.ExecuteAsync(request);
+        var client = new RestClient(BaseUrl);
+        var request = new RestRequest();
+        var response = await client.ExecuteAsync(request);
 
-            if (response.IsSuccessful)
+        if (response.IsSuccessful)
+        {
+            var doc = new HtmlDocument();
+            doc.LoadHtml(response.Content);
+            var downloadLinkNode = doc.DocumentNode.SelectSingleNode("//a[@class='boton descargar']");
+            if (downloadLinkNode != null)
             {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(response.Content);
-                var downloadLinkNode = doc.DocumentNode.SelectSingleNode("//a[@class='boton descargar']");
-                if (downloadLinkNode != null)
-                {
-                    return downloadLinkNode.GetAttributeValue("href", null);
-                }
-                else
-                {
-                    Console.WriteLine("No download link found on the page.");
-                }
+                return downloadLinkNode.GetAttributeValue("href", null);
             }
             else
             {
-                Console.WriteLine($"Failed to load the web page. Status: {response.StatusCode}");
+                Console.WriteLine("No se encontro el link para encontrar la pagina");
             }
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"An error occurred while getting the PDF URL: {ex.Message}");
+            Console.WriteLine($"Fallo al cargar la pagina. Estado: {response.StatusCode}");
         }
         return null;
     }
 
     private async Task<string> DownloadPdfAsync(string pdfUrl)
     {
-        try
-        {
-            var client = new RestClient(pdfUrl);
-            var request = new RestRequest();
-            var response = await client.ExecuteAsync(request);
+        var client = new RestClient(pdfUrl);
+        var request = new RestRequest();
+        var response = await client.ExecuteAsync(request);
 
-            if (response.IsSuccessful)
-            {
-                string filePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "downloaded.pdf");
-                await System.IO.File.WriteAllBytesAsync(filePath, response.RawBytes);
-                Console.WriteLine("PDF downloaded successfully.");
-                return filePath;
-            }
-            else
-            {
-                Console.WriteLine($"Failed to download the PDF. Status: {response.StatusCode}");
-            }
-        }
-        catch (Exception ex)
+        if (response.IsSuccessful)
         {
-            Console.WriteLine($"An error occurred while downloading the PDF: {ex.Message}");
+            string filePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "downloaded.pdf");
+            await System.IO.File.WriteAllBytesAsync(filePath, response.RawBytes);
+            Console.WriteLine("Se descargo el PDF.");
+            return filePath;
+        }
+        else
+        {
+            Console.WriteLine($"Fallo la descarga del PDF. Estado: {response.StatusCode}");
         }
         return null;
     }
 
     private async Task ProcessPdf(string filePath)
     {
-        try
+        using (PdfReader reader = new PdfReader(filePath))
         {
-            using (PdfReader reader = new PdfReader(filePath))
+            StringBuilder text = new StringBuilder();
+            for (int i = 1; i <= reader.NumberOfPages; i++)
             {
-                StringBuilder text = new StringBuilder();
-
-                for (int i = 1; i <= reader.NumberOfPages; i++)
-                {
-                    text.Append(PdfTextExtractor.GetTextFromPage(reader, i));
-                }
-
-                await ExtractDataFromText(text.ToString());
+                text.Append(PdfTextExtractor.GetTextFromPage(reader, i));
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred while processing the PDF: {ex.Message}");
+            await ExtractDataFromText(text.ToString());
         }
     }
 
@@ -131,42 +108,59 @@ public class ScrapColyPro
         bool isTableStarted = false;
         ConcurrentBag<Colegiado> colegiados = new ConcurrentBag<Colegiado>();
 
-        foreach (var line in lines)
+        using (var context = new ColegiosProfesionalesContext())
         {
-            if (line.Contains("Cédula"))
-            {
-                isTableStarted = true;
-                continue;
-            }
 
-            if (isTableStarted && !string.IsNullOrWhiteSpace(line))
+            var colegio = context.Colegios.FirstOrDefault(c => c.Descripcion == "Colegio de Licenciados y Profesores");
+            if (colegio == null)
             {
-                var matches = Regex.Matches(line, @"(\d+)\s+(.*?)(Retiro Indefinido|Suspendido|Activo|Retiro Temporal)(?=\d|$)");
-                foreach (Match match in matches)
+                colegio = new Colegio
                 {
-                    if (match.Success)
-                    {
-                        string Identificacion = match.Groups[1].Value.Trim();
-                        string Nombre = match.Groups[2].Value.Trim();
-                        string Estado = match.Groups[3].Value.Trim();  
+                    Descripcion = "Colegio de Licenciados y Profesores",
+                    Profesion = "Educación",
+                    Web = BaseUrl,
+                    Fecha = DateTime.Now,
+                    Modulo = false,
+                    Titulo = "Licenciados y Profesores"
+                };
+                context.Colegios.Add(colegio);
+                await context.SaveChangesAsync();
+            }
+            int colegioId = colegio.Id;
 
-                        colegiados.Add(new Colegiado
+            foreach (var line in lines)
+            {
+                if (line.Contains("Cédula"))
+                {
+                    isTableStarted = true;
+                    continue;
+                }
+                if (isTableStarted && !string.IsNullOrWhiteSpace(line))
+                {
+                    var matches = Regex.Matches(line, @"(\d+)\s+(.*?)(Retiro Indefinido|Suspendido|Activo|Retiro Temporal)(?=\d|$)");
+                    foreach (Match match in matches)
+                    {
+                        if (match.Success)
                         {
-                            Identificacion = Identificacion,
-                            Nombre = Nombre,
-                            CondicionColegiadoId = 1 
-                        });
+                            string Identificacion = match.Groups[1].Value.Trim();
+                            string Nombre = match.Groups[2].Value.Trim();
+                            colegiados.Add(new Colegiado
+                            {
+                                Identificacion = Identificacion,
+                                Nombre = Nombre,
+                                CondicionColegiadoId = 1,  
+                                ColegioId = colegioId
+                            });
+                        }
                     }
                 }
             }
-        }
 
-        using (var context = new ColegiosProfesionalesContext())
-        {
+            // Bulk insert usando EFCore.BulkExtensions
             if (colegiados.Any())
             {
                 await context.BulkInsertAsync(colegiados.ToList());
-                Console.WriteLine("se inserto todo!!!");
+                Console.WriteLine("Todos los colegiados se guardaron conrrectamente");
             }
         }
     }
