@@ -30,6 +30,20 @@ El proyecto consta de varias clases, cada una destinada a extraer datos de una f
 
 - En la clase ScrapColyPro.cs, se busca un colegio específico en la base de datos (por ejemplo, el "Colegio de Licenciados y Profesores"). Si el colegio no está presente, se crea automáticamente para asociar los colegiados extraídos. Esto garantiza que todos los colegiados estén correctamente vinculados a su institución correspondiente en la base de datos.
 
+## Dependencias
+
+- **HtmlAgilityPack**: 1.11.61
+- **iTextSharp**: 5.5.13.3
+- **RestSharp**: 110.2.0
+- **EFCore.BulkExtensions**: 8.0.3
+- **Newtonsoft.Json**: 13.0.3
+
+## Entorno de Desarrollo
+
+- **Visual Studio**: 2022 (v17.10.0)
+- **.NET Core SDK**: 8.0
+- **C#**: 9.0
+
 ## Contribución
 
 ¡Tu contribución es bienvenida! Si deseas colaborar en este proyecto, sigue estos pasos:
