@@ -18,6 +18,7 @@ public class ScrapTrabajoSocial
         try
         {
             var initialRequest = new RestRequest("?listpage=1&instance=1", Method.Get);
+            var initialRequest = new RestRequest("?listpage=1&instance=1", Method.Get);
             var initialResponse = await client.ExecuteAsync(initialRequest);
 
             if (!initialResponse.IsSuccessful)

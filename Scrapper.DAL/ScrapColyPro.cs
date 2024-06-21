@@ -156,7 +156,7 @@ public class ScrapColyPro
                 }
             }
 
-            // Bulk insert usando EFCore.BulkExtensions
+            
             if (colegiados.Any())
             {
                 await context.BulkInsertAsync(colegiados.ToList());

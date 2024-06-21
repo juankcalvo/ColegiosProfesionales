@@ -55,7 +55,7 @@ public class ScrapOptometristas
                                         {
                                             Nombre = nombre,
                                             CondicionColegiadoId = 1,
-                                            ColegioId = colegioId // Asignar el ID del colegio encontrado
+                                            ColegioId = colegioId 
                                         });
                                         Console.WriteLine($"Añadido: {nombre} - {estado}");
                                     }

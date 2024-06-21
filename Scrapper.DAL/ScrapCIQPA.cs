@@ -60,7 +60,7 @@ public class ScrapCIQPA
                                     Nombre = NombreCompleto,
                                     Especialidad = profesion,
                                     CondicionColegiadoId = 1,
-                                    ColegioId = colegioId  // Asignar el ID del colegio encontrado
+                                    ColegioId = colegioId 
                                 };
 
                                 _context.Colegiados.Add(colegiado);

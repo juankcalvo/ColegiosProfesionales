@@ -37,7 +37,7 @@ public class ScrapGeologos
 
                         using (var context = new ColegiosProfesionalesContext())
                         {
-                            // Obtener el ID del colegio "Colypro"
+                            
                             int colegioId = await context.Colegios
                                                         .Where(c => c.Profesion == "Geologo")
                                                         .Select(c => c.Id)
