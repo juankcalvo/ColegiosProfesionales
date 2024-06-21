@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="EFCore.BulkExtensions" Version="8.0.3" />
+    <PackageReference Include="EFCore.BulkExtensions" Version="8.0.4" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="RestSharp" Version="110.2.0" />
+    <PackageReference Include="PuppeteerSharp" Version="18.0.0" />
+    <PackageReference Include="RestSharp" Version="111.1.0" />
   </ItemGroup>
 
   <ItemGroup>

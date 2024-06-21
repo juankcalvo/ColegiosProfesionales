@@ -23,9 +23,12 @@
         //await scrapOptometristas.ProcessColegiadosData();
 
 
-        ScrapColyPro scrapColyPro = new ScrapColyPro();
-        await scrapColyPro.DownloadAndProcessPdfAsync();
-         
+        //ScrapColyPro scrapColyPro = new ScrapColyPro();
+        //await scrapColyPro.DownloadAndProcessPdfAsync();
+
+        ScrapLinkedin scrapLinkedin = new ScrapLinkedin();
+        await scrapLinkedin.LinkedinUsers();
+
 
         Console.ReadKey();
     }
