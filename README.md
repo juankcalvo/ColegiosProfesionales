@@ -44,15 +44,6 @@ El proyecto consta de varias clases, cada una destinada a extraer datos de una f
 - **.NET Core SDK**: 8.0
 - **C#**: 9.0
 
-## Contribución
-
-¡Tu contribución es bienvenida! Si deseas colaborar en este proyecto, sigue estos pasos:
-
-1. Haz un fork del repositorio.
-2. Crea una nueva rama para tus cambios.
-3. Realiza tus modificaciones y asegúrate de seguir las convenciones de codificación y estilo existentes.
-4. Envía un pull request describiendo tus cambios y explicando su propósito.
-5. Revisa cualquier comentario o retroalimentación proporcionada y realiza ajustes según sea necesario.
 
 ## Licencia
 
